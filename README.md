@@ -1,0 +1,162 @@
+# Polymarket Elixir
+
+An Elixir client library for interacting with the Polymarket APIs:
+
+- **Gamma API** – Read-only market and event data (https://gamma-api.polymarket.com)
+- **Data API** – User positions, trades, activity, holders, and portfolio value (https://data-api.polymarket.com)
+- **CLOB API** – Full read and write trading operations on the Polymarket Conditional Tokens Framework exchange (https://clob.polymarket.com)
+
+The library supports **EIP-712 order signing** using your Polygon private key, allowing you to place and cancel orders directly.
+
+## Features
+
+- Clean, idiomatic Elixir interface
+- Automatic JSON decoding with `Req` and `Jason`
+- Post-processing of Gamma API JSON-string fields (`outcomes`, `outcomePrices`, etc.)
+- Full CLOB order signing (EIP-712) via `eip712`
+- Private key loading from `POLYMARKET_PRIVATE_KEY` environment variable or explicit option
+- Comprehensive read endpoints for all three APIs
+- Write support for placing and canceling orders on the CLOB
+
+## Installation
+
+Add `polymarket` to your list of dependencies in `mix.exs`:
+
+```elixir
+def deps do
+  [
+    {:polymarket, "~> 0.3.0"},
+    # or for the latest from Hex (when published)
+    # {:polymarket, "~> 0.3"}
+  ]
+end
+```
+
+Then run:
+
+```bash
+mix deps.get
+```
+
+## Dependencies
+
+The library depends on:
+
+- `req ~> 0.4` – HTTP client
+- `jason ~> 1.4` – JSON encoding/decoding
+- `eip712 ~> 0.2.0` – EIP-712 signing and address derivation
+
+## Usage
+
+### Gamma API (Markets & Events)
+
+```elixir
+# List active markets
+{:ok, markets} = Polymarket.list_markets(closed: false, limit: 20)
+
+# Get a specific market
+{:ok, market} = Polymarket.get_market("will-bitcoin-hit-100k-in-2025")
+
+# List events
+{:ok, events} = Polymarket.list_events(limit: 10)
+
+# Get a specific event
+{:ok, event} = Polymarket.get_event("us-presidential-election-2024")
+
+# Tags and sports
+{:ok, tags} = Polymarket.list_tags()
+{:ok, sports} = Polymarket.list_sports()
+```
+
+### Data API (User & Trade Data)
+
+```elixir
+{:ok, positions} = Polymarket.get_positions("0x742d35Cc6634C0532925a3b844Bc454e4438f44e")
+{:ok, trades} = Polymarket.get_trades(limit: 50)
+{:ok, activity} = Polymarket.get_activity("0xYourAddress")
+{:ok, holders} = Polymarket.get_holders("some-market-id")
+{:ok, value} = Polymarket.get_value("0xYourAddress")
+```
+
+### CLOB API (Trading)
+
+#### Read Operations
+
+```elixir
+{:ok, markets} = Polymarket.get_clob_markets(limit: 10)
+{:ok, book} = Polymarket.get_orderbook("987654321", side: "buy")
+{:ok, trades} = Polymarket.get_clob_trades("987654321")
+{:ok, prices} = Polymarket.get_prices("987654321")
+{:ok, orders} = Polymarket.get_orders("987654321", user: "0xYourAddress")
+```
+
+#### Write Operations (Placing & Canceling Orders)
+
+Set your Polygon private key (hex string, with or without 0x prefix):
+
+```bash
+export POLYMARKET_PRIVATE_KEY="your_private_key_here"
+```
+
+Or pass it explicitly in calls.
+
+Place an order (example: buy 50 outcome shares with 100 USDC):
+
+
+```elixir
+order_params = %{
+  tokenId: "987654321",           # Token ID of the outcome
+  side: "buy",                    # or "sell"
+  makerAmount: "100000000",       # Amount in base units (e.g., 100 USDC = 100 * 10^6)
+  takerAmount: "5000000000",      # Amount of outcome tokens (adjust decimals)
+  nonce: "123"                    # Must be current on-chain nonce for your address
+}
+
+{:ok, response} = Polymarket.place_order(order_params)
+# response includes orderHash, status, etc.
+```
+
+Cancel an order:
+
+```elixir
+{:ok, response} = Polymarket.cancel_order("0xorderhashhere")
+```
+
+
+> Important: The nonce must be the current maker nonce from the CTF Exchange
+> contract (`getMakerNonce(address)`). You can fetch it with
+> `Polymarket.get_maker_nonce/1` by passing `address:` or `private_key:` and
+> configuring an RPC endpoint (`rpc_url` option, `:polymarket, :rpc_url`, or
+> `POLYGON_RPC_URL`).
+
+## Configuration
+
+- Private Key: Set `POLYMARKET_PRIVATE_KEY` in your environment, or pass `private_key: "0x..."` as an option to `place_order/2` or `cancel_order/2`.
+
+- Order Defaults: Salt, expiration (1 year), feeRateBps (0), and signatureType (0 = EIP-712) are set automatically if not provided.
+
+- HTTP Options: You can override base URLs and Req options via application env:
+  - `:polymarket, :gamma_base_url`, `:polymarket, :data_base_url`, `:polymarket, :clob_base_url`
+  - `:polymarket, :req_options` (global) and `:polymarket, :gamma_req_options` / `:data_req_options` / `:clob_req_options`
+
+## Testing
+
+The library includes unit doctests and integration tests under `test/polymarket/*`.
+Integration tests use `Bypass` to stub HTTP responses for Gamma/Data/CLOB and
+do not require live network calls.
+
+```bash
+mix test
+```
+
+## License
+
+MIT License – see `LICENSE` for details.
+
+## Contributing
+
+Contributions are welcome! Feel free to open issues or pull requests.
+
+## Disclaimer
+
+This library interacts with live financial markets. Use at your own risk. Always test on small amounts first and verify order parameters carefully.

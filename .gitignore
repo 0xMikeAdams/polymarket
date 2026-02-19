@@ -1,0 +1,9 @@
+/_build/
+/deps/
+/doc/
+/polymarket-*.tar
+/polymarket-*/
+/tmp/
+/.elixir_ls/
+erl_crash.dump
+.DS_Store
