@@ -3,7 +3,7 @@ defmodule Polymarket.Error do
   Error struct returned by this library.
 
   The goal is to provide a consistent shape for API and transport errors across
-  all Polymarket services (Gamma, Data, CLOB).
+  all Polymarket services (Gamma, Data, CLOB, WebSocket).
 
   ## Examples
 
@@ -18,7 +18,7 @@ defmodule Polymarket.Error do
   @enforce_keys [:service, :kind]
   defstruct [:service, :kind, :message, :status, :body, :reason]
 
-  @type service :: :gamma | :data | :clob
+  @type service :: :gamma | :data | :clob | :websocket
   @type kind ::
           :http_error | :transport_error | :invalid_request | :signing_error | :unexpected_error
 

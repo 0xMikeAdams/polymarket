@@ -3,6 +3,25 @@ defmodule Polymarket do
   Elixir client for Polymarket APIs (Gamma, Data, CLOB) with built-in order signing.
 
   All functions return `{:ok, result}` on success or `{:error, %Polymarket.Error{}}` on failure.
+
+  ## Realtime streaming
+
+  Realtime Polymarket events (fills, settlements, trades, prices, oracle
+  resolutions, ...) are available through the PolyNode WebSocket API via
+  `Polymarket.Websocket`:
+
+      {:ok, ws} =
+        Polymarket.Websocket.start_link(
+          api_key: "pn_live_...",
+          subscriptions: [:fills]
+        )
+
+      receive do
+        {:polymarket_ws, :event, event} -> handle_fill(event)
+      end
+
+  See `Polymarket.Websocket` for subscriptions, filters, and reconnection
+  behavior.
   """
 
   alias Polymarket.Gamma
