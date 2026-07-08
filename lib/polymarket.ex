@@ -22,6 +22,16 @@ defmodule Polymarket do
 
   See `Polymarket.Websocket` for subscriptions, filters, and reconnection
   behavior.
+
+  For free, direct streaming from Polymarket's official CLOB WebSocket
+  (orderbook snapshots, price changes, and your own order/trade updates), use
+  `Polymarket.Websocket.Clob`:
+
+      {:ok, ws} = Polymarket.Websocket.Clob.start_link(assets_ids: ["7132107..."])
+
+      receive do
+        {:polymarket_clob_ws, :book, book} -> rebuild_orderbook(book)
+      end
   """
 
   alias Polymarket.Gamma

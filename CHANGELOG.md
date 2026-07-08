@@ -10,6 +10,12 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ### Added
 
+- Realtime streaming from the official Polymarket CLOB WebSocket
+  (`Polymarket.Websocket.Clob`): public orderbook data (book snapshots,
+  price changes, tick size changes, last trade price) with dynamic
+  subscribe/unsubscribe, and the authenticated user channel for order/trade
+  updates. Handles the required `PING` keepalive and reconnects with
+  automatic resubscription.
 - Realtime WebSocket streaming via the PolyNode API (`Polymarket.Websocket`):
   subscriptions to fills, settlements, trades, prices, wallets, oracle events,
   and more, with filters, automatic reconnection with exponential backoff, and

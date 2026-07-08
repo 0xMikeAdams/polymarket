@@ -5,7 +5,8 @@ An Elixir client library for interacting with the Polymarket APIs:
 - **Gamma API** – Read-only market and event data (https://gamma-api.polymarket.com)
 - **Data API** – User positions, trades, activity, holders, and portfolio value (https://data-api.polymarket.com)
 - **CLOB API** – Full read and write trading operations on the Polymarket Conditional Tokens Framework exchange (https://clob.polymarket.com)
-- **WebSocket streaming** – Realtime fills, settlements, trades, prices, and oracle events via [PolyNode](https://docs.polynode.dev/websocket/overview) (wss://ws.polynode.dev)
+- **CLOB WebSocket** – Free, official realtime orderbook data and order/trade updates (wss://ws-subscriptions-clob.polymarket.com)
+- **PolyNode WebSocket** – Enriched realtime fills, settlements, wallet activity, and oracle events via [PolyNode](https://docs.polynode.dev/websocket/overview) (wss://ws.polynode.dev, third-party, paid tiers)
 
 The library supports **EIP-712 order signing** using your Polygon private key, allowing you to place and cancel orders directly.
 
@@ -125,9 +126,45 @@ Cancel an order:
 {:ok, response} = Polymarket.cancel_order("0xorderhashhere")
 ```
 
-### WebSocket Streaming (PolyNode)
+### CLOB WebSocket Streaming (Official, Free)
 
-Realtime Polymarket events are streamed via the [PolyNode WebSocket API](https://docs.polynode.dev/websocket/overview). You need a PolyNode API key (`pn_live_...`):
+Stream orderbook data for specific tokens straight from Polymarket — no API key needed:
+
+```elixir
+{:ok, ws} = Polymarket.Websocket.Clob.start_link(assets_ids: ["71321045679252212594626385532706912750332728571942532289631379312455583992563"])
+
+receive do
+  {:polymarket_clob_ws, :book, book} -> rebuild_orderbook(book)
+  {:polymarket_clob_ws, :price_change, change} -> apply_change(change)
+  {:polymarket_clob_ws, :last_trade_price, trade} -> track_trade(trade)
+end
+
+# Add or remove tokens without reconnecting
+:ok = Polymarket.Websocket.Clob.subscribe(ws, ["another_token_id"])
+:ok = Polymarket.Websocket.Clob.unsubscribe(ws, ["a_token_id"])
+```
+
+For your own order and fill updates, use the authenticated user channel with your CLOB API credentials (also via `POLYMARKET_CLOB_API_KEY` / `POLYMARKET_CLOB_SECRET` / `POLYMARKET_CLOB_PASSPHRASE`):
+
+```elixir
+{:ok, ws} =
+  Polymarket.Websocket.Clob.start_link(
+    channel: :user,
+    markets: ["0xcondition_id..."],
+    api_key: "...", secret: "...", passphrase: "..."
+  )
+
+receive do
+  {:polymarket_clob_ws, :order, order} -> handle_order_update(order)
+  {:polymarket_clob_ws, :trade, trade} -> handle_fill(trade)
+end
+```
+
+The client sends the required `PING` keepalive every 10 seconds and reconnects automatically with exponential backoff, re-subscribing to all tracked tokens; the server replays full `book` snapshots on subscribe, so orderbook state can be rebuilt after any `:disconnected` message.
+
+### PolyNode WebSocket Streaming (Enriched, Third-Party)
+
+For enriched events the official feeds don't offer — pre-confirmation fills, arbitrary wallet tracking, whale alerts, settlement bundles, UMA oracle lifecycle — use the [PolyNode WebSocket API](https://docs.polynode.dev/websocket/overview). You need a PolyNode API key (`pn_live_...`):
 
 ```bash
 export POLYNODE_API_KEY="pn_live_your_key_here"
@@ -183,7 +220,9 @@ On disconnect the client reconnects automatically with exponential backoff and r
   - `:polymarket, :gamma_base_url`, `:polymarket, :data_base_url`, `:polymarket, :clob_base_url`
   - `:polymarket, :req_options` (global) and `:polymarket, :gamma_req_options` / `:data_req_options` / `:clob_req_options`
 
-- WebSocket: Set `POLYNODE_API_KEY` (or `:polymarket, :polynode_api_key`, or the `api_key:` option). The endpoint can be overridden with `:polymarket, :polynode_ws_url` or the `url:` option.
+- CLOB WebSocket: No credentials needed for the market channel. The user channel takes `api_key:` / `secret:` / `passphrase:` options or `POLYMARKET_CLOB_API_KEY` / `POLYMARKET_CLOB_SECRET` / `POLYMARKET_CLOB_PASSPHRASE`. The endpoint can be overridden with `:polymarket, :clob_ws_url` or the `url:` option.
+
+- PolyNode WebSocket: Set `POLYNODE_API_KEY` (or `:polymarket, :polynode_api_key`, or the `api_key:` option). The endpoint can be overridden with `:polymarket, :polynode_ws_url` or the `url:` option.
 
 ## Testing
 
